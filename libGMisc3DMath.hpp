@@ -1,7 +1,47 @@
 // https://github.com/GeeTwentyFive/libGMisc3DMath
 #pragma once
 
-// TODO
+#include "libs/linalg/linalg.h"
+using namespace linalg::aliases;
+#include <math.h>
+#ifndef M_PI  // (Windows fix)
+#define M_PI 3.14159265358979323846
+#endif
+
+namespace GMisc3DMath {
+        float3 ScreenToWorldRay(  // returns ray direction (ray origin is camera pos)
+                float mouse_x, float mouse_y,
+                int window_width, int window_height,
+                float4x4 *viewProjection
+        ) {
+                float4x4 inverse_viewProjection = linalg::inverse(*viewProjection);
+                float normalized_device_x = (2.0f*mouse_x)/(float)window_width - 1.0f;
+                float normalized_device_y = 1.0f - (2.0f*mouse_y)/(float)window_height;
+                float4 near_quat = linalg::mul(inverse_viewProjection, float4{normalized_device_x, normalized_device_y, 0.0f, 1.0f});
+                float3 near_point = {near_quat.x/near_quat.w, near_quat.y/near_quat.w, near_quat.z/near_quat.w};
+                float4 far_quat = linalg::mul(inverse_viewProjection, float4{normalized_device_x, normalized_device_y, 1.0f, 1.0f});
+                float3 far_point = {far_quat.x/far_quat.w, far_quat.y/far_quat.w, far_quat.z/far_quat.w};
+                return linalg::normalize(far_point - near_point);
+        }
+
+        float3 QuatToEuler(float4 quat) {
+                float3 euler = {
+                        atan2(2*(quat.w*quat.x + quat.y*quat.z), 1 - 2*(quat.x*quat.x + quat.y*quat.y)) * (float)(180/M_PI),
+                        asin(2*(quat.w*quat.y - quat.z*quat.x)) * (float)(180/M_PI),
+                        atan2(2*(quat.w*quat.z + quat.x*quat.y), 1 - 2*(quat.y*quat.y + quat.z*quat.z)) * (float)(180/M_PI)
+                }; if (euler.x != euler.x) euler.x = 0.0f; if (euler.y != euler.y) euler.y = 0.0f; if (euler.z != euler.z) euler.z = 0.0f; // NaN fix
+                return euler;
+        }
+        float4 EulerToQuat(float3 euler) {
+                return linalg::qmul(
+                        linalg::rotation_quat(float3{0, 0, 1}, euler.z*(float)(M_PI/180)),
+                        linalg::qmul(
+                                linalg::rotation_quat(float3{0, 1, 0}, euler.y*(float)(M_PI/180)),
+                                linalg::rotation_quat(float3{1, 0, 0}, euler.x*(float)(M_PI/180))
+                        )
+                );
+        }
+}
 
 
 
